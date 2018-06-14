@@ -45,7 +45,6 @@ __host__  int cpu_brute_force(const char* alphabet, const int key_length, const 
 				count++;
 			}
 		}
-		key = next_combination(key, alphabet, alphabet_length, 1);
 	}
 	return count;
 }

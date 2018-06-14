@@ -4,14 +4,6 @@
 
 #pragma region headers
 
-
-__host__ __device__ uint64_t next_combination(uint64_t value, const char* alphabet, const int alphabet_length,
-                                              const uint64_t offset);
-
-__host__ __device__ uint64_t init_combinations(const char* alphabet, const int alphabet_length,
-                                               const int segment_length,
-                                               const uint64_t offset_from_start);
-
 __host__ __device__ uint64_t create_pattern(uint64_t combination_number, const char* alphabet, int32_t alphabet_length, int32_t segment_length)
 {
 	int limit = 8 - segment_length;
@@ -38,38 +30,6 @@ __host__ void show_results(const uint64_t* const keys, const uint64_t* const pla
 #pragma endregion
 
 #pragma region implementation
-
-__host__ __device__ uint64_t next_combination(uint64_t value, const char* alphabet, const int alphabet_length,
-                                              const uint64_t offset)
-{
-	const char min_char = alphabet[0];
-	char* arr = (char*)&value;
-	uint64_t carry = offset;
-
-	int i = 7;
-	while (carry > 0 && i >= 0)
-	{
-		uint64_t x = arr[i] + carry - min_char;
-		carry = x / alphabet_length;
-		arr[i] = min_char + x % alphabet_length;
-		i--;
-	}
-	return value;
-}
-
-__host__ __device__ uint64_t init_combinations(const char* alphabet, const int alphabet_length,
-                                               const int segment_length,
-                                               const uint64_t offset_from_start)
-{
-	const char min_char = alphabet[0];
-	uint64_t result = 0;
-	char* arr = (char*)&result;
-	int limit = 8 - segment_length;
-	for (int i = 8; --i >= limit;)
-		arr[i] = min_char;
-
-	return next_combination(result, alphabet, alphabet_length, offset_from_start);
-}
 
 __host__ __device__ uint64_t number_of_combinations(const int alphabet_length, int segment_length)
 {

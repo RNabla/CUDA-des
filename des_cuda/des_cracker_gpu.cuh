@@ -66,13 +66,13 @@ __global__ void kernel(const char* alphabet, const int alphabet_length, const in
 	uint64_t warp_id = get_warp_id();
 	uint64_t plaintext_combinations = number_of_combinations(alphabet_length, plaintext_length);
 	uint64_t round_keys[16];
-	uint64_t key = init_combinations(alphabet, alphabet_length, key_length, warp_id);
+	uint64_t key = create_pattern(warp_id, alphabet, alphabet_length, key_length);
 	if (thread_id == 0) {
 		generate_round_keys(key, round_keys);
 	}
-	uint64_t plaintext = init_combinations(alphabet, alphabet_length, plaintext_length, thread_id);
 	for (uint64_t j = 0; j < plaintext_combinations; j += warpSize)
 	{
+		uint64_t plaintext = create_pattern(j, alphabet, alphabet_length, key_length);
 		if (ciphertext == des_encrypt(plaintext, round_keys))
 		{
 			int index = atomicAdd(count, 1);
@@ -82,7 +82,6 @@ __global__ void kernel(const char* alphabet, const int alphabet_length, const in
 				plaintexts[index] = plaintext;
 			}
 		}
-		plaintext = next_combination(plaintext, alphabet, alphabet_length, warpSize);
 	}
 }
 
