@@ -20,11 +20,9 @@ __global__ void kernel(const char* alphabet, const int alphabet_length, const in
 
 __device__ uint64_t get_warp_id();
 
-__device__ uint32_t get_thread_id();
-
 __host__ bool calculate_distribution(uint64_t threads_needed, dim3* threads_per_block, dim3* blocks)
 {
-	const uint32_t threads_in_block = (uint32_t)(threads_needed >= 1024L ? 1024L : threads_needed);
+	const uint32_t threads_in_block = (uint32_t)(threads_needed >= 128L ? 128L : threads_needed);
 	uint64_t blocks_needed = (long)ceilf(threads_needed / (float)threads_in_block);
 	const uint32_t block_x = (uint32_t)(blocks_needed >= 1024L ? 1024L : blocks_needed);
 	blocks_needed = (int)ceilf(blocks_needed / (float)block_x);
@@ -62,15 +60,12 @@ __global__ void kernel(const char* alphabet, const int alphabet_length, const in
                        const int plaintext_length, const uint64_t ciphertext,
                        const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
-	const int thread_id = get_thread_id();
 	uint64_t warp_id = get_warp_id();
 	uint64_t plaintext_combinations = number_of_combinations(alphabet_length, plaintext_length);
 	uint64_t round_keys[16];
 	uint64_t key = create_pattern(warp_id, alphabet, alphabet_length, key_length);
-	if (thread_id == 0) {
-		generate_round_keys(key, round_keys);
-	}
-	for (uint64_t j = 0; j < plaintext_combinations; j += warpSize)
+	generate_round_keys(key, round_keys);
+	for (uint64_t j = threadIdx.x & 0x1fULL; j < plaintext_combinations; j += 32)
 	{
 		uint64_t plaintext = create_pattern(j, alphabet, alphabet_length, key_length);
 		if (ciphertext == des_encrypt(plaintext, round_keys))
@@ -114,13 +109,13 @@ __host__ void run_gpu_version(const char* alphabet, const int key_length, const 
 	gpuErrchk(cudaMalloc(&d_plaintexts, output_limit * sizeof(uint64_t)));
 	gpuErrchk(cudaMalloc(&d_keys, output_limit * sizeof(uint64_t)));
 	gpuErrchk(cudaMemset(d_count, 0, sizeof(int)));
-	gpuErrchk(cudaMemset(d_keys, 0, sizeof(uint64_t) * output_limit));
-	gpuErrchk(cudaMemset(d_plaintexts, 0, sizeof(uint64_t) * output_limit));
+	//gpuErrchk(cudaMemset(d_keys, 0, sizeof(uint64_t) * output_limit));
+	//gpuErrchk(cudaMemset(d_plaintexts, 0, sizeof(uint64_t) * output_limit));
 	//gpuErrchk(cudaEventRecord(kernel_start));
 
-
-	calculate_distribution(number_of_combinations(alphabet_length, key_length) * 32, &threads_per_block, &blocks);
-
+	uint64_t keys_to_check = number_of_combinations(alphabet_length, key_length);
+	calculate_distribution(keys_to_check * 32, &threads_per_block, &blocks);
+	printf("[DEBUG - GPU] keys to check: %d\n", keys_to_check);
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
 
@@ -143,11 +138,11 @@ __host__ void run_gpu_version(const char* alphabet, const int key_length, const 
 	//gpuErrchk(cudaEventDestroy(kernel_start));
 	//gpuErrchk(cudaEventDestroy(kernel_stop));
 
-	cudaMemcpy(h_keys, d_keys, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost);
-	cudaMemcpy(h_plaintexts, d_plaintexts, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost);
-	cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost);
+	gpuErrchk(cudaMemcpy(h_keys, d_keys, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(h_plaintexts, d_plaintexts, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
+	gpuErrchk(cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
 
-	cudaDeviceSynchronize();
+	gpuErrchk(cudaDeviceSynchronize());
 
 	printf("[GPU] Elapsed time: %lf\n", elapsed_time);
 
@@ -166,8 +161,4 @@ __device__ uint64_t get_warp_id()
 	return (blockId * blockDim.x + threadIdx.x) / (uint64_t)32;
 }
 
-__device__ uint32_t get_thread_id()
-{
-	return threadIdx.x & 31;
-}
 #pragma endregion
