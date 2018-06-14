@@ -12,6 +12,21 @@ __host__ __device__ uint64_t init_combinations(const char* alphabet, const int a
                                                const int segment_length,
                                                const uint64_t offset_from_start);
 
+__host__ __device__ uint64_t create_pattern(uint64_t combination_number, const char* alphabet, int32_t alphabet_length, int32_t segment_length)
+{
+	int limit = 8 - segment_length;
+	uint64_t acc = 0;
+	for (int i = 8; --i >= limit;)
+	{
+		uint64_t y = combination_number / alphabet_length;
+		acc *= (1ULL << 8);
+		acc += alphabet[combination_number - y * alphabet_length];
+		combination_number = y;
+	}
+	acc *= (1ULL << (8 * limit));
+	return acc;
+}
+
 __host__ __device__ uint64_t number_of_combinations(const int alphabet_length, int segment_length);
 
 
@@ -112,5 +127,6 @@ __host__ void show_results(const uint64_t* const keys, const uint64_t* const pla
 	}
 	printf("======\n");
 }
+
 
 #pragma endregion

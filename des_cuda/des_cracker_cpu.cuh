@@ -25,15 +25,16 @@ __host__  int cpu_brute_force(const char* alphabet, const int key_length, const 
 	uint64_t key_combinations = number_of_combinations(alphabet_length, key_length);
 	uint64_t plaintext_combinations = number_of_combinations(alphabet_length, plaintext_length);
 	uint64_t round_keys[16];
-	uint64_t key = init_combinations(alphabet, alphabet_length, key_length, 0);
 
 	int count = 0;
 	for (uint64_t i = 0; i < key_combinations; i++)
 	{
+		uint64_t key = create_pattern(i, alphabet, alphabet_length, key_length);
 		generate_round_keys(key, round_keys);
-		uint64_t plaintext = init_combinations(alphabet, alphabet_length, plaintext_length, 0);
+		
 		for (uint64_t j = 0; j < plaintext_combinations; j++)
 		{
+			uint64_t plaintext = create_pattern(j, alphabet, alphabet_length, plaintext_length);
 			if (ciphertext == des_encrypt(plaintext, round_keys))
 			{
 				if (count < output_size)
@@ -43,7 +44,6 @@ __host__  int cpu_brute_force(const char* alphabet, const int key_length, const 
 				}
 				count++;
 			}
-			plaintext = next_combination(plaintext, alphabet, alphabet_length, 1);
 		}
 		key = next_combination(key, alphabet, alphabet_length, 1);
 	}

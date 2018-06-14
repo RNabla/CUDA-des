@@ -15,6 +15,7 @@
     <RootNamespace>des_cuda</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
+  <Import Project="$(ProjectDir)Microsoft.VCToolsVersion.14.11.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -87,6 +88,19 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <CudaCompile Include="kernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bits_utils.cuh" />
+    <ClInclude Include="des_cracker_cpu.cuh" />
+    <ClInclude Include="des.cuh" />
+    <ClInclude Include="des_constants.cuh" />
+    <ClInclude Include="des_utils.cuh" />
+    <ClInclude Include="des_cracker_gpu.cuh" />
+    <ClInclude Include="misc.cuh" />
+    <ClInclude Include="runtime_parameters.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="runtime_parameters.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
