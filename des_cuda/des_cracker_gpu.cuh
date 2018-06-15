@@ -91,7 +91,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	char *d_key_alphabet,
 	     *d_plaintext_alphabet;
 	int *d_count,
-		h_count;
+	    h_count;
 	uint64_t *d_plaintexts,
 	         *d_keys,
 	         *h_plaintexts = new uint64_t[output_limit],
@@ -127,7 +127,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
 
-	kernel << <blocks, threads_per_block >> > (
+	kernel << <blocks, threads_per_block >> >(
 		d_key_alphabet,
 		key_alphabet_length,
 		key_length,
