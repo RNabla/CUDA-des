@@ -39,12 +39,9 @@ int main(int argc, char** argv)
 
 	print_parameters(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, run_cpu);
 
-	int key_alphabet_length = strlen(key_alphabet),
-		plaintext_alphabet_length = strlen(plaintext_alphabet);
-
-	run_gpu_version(alphabet, key_length, plaintext_length, ciphertext, 100);
+	run_gpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, 100);
 	if (run_cpu)
-		run_cpu_version(alphabet, key_length, plaintext_length, ciphertext, 100);
+		run_cpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, 100);
 
 
 	return 0;

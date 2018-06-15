@@ -295,7 +295,10 @@ char* transform_key_alphabet(char* key_alphabet, char* prog_name)
 	std::unique(alphabet, alphabet + length + 1, [](char a, char b) -> bool
 	{
 		// des doesn't care about 8th bit in each byte, so we can reduce key-alphabet
-		return a & 0xfe == b & 0xfe;
+		auto a_masked = a & 0xfe;
+		auto b_masked = b & 0xfe;
+
+		return a_masked == b_masked;
 	});
 
 	return alphabet;
