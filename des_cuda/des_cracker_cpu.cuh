@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <chrono>
+#include "misc.hpp"
 #include "misc.cuh"
 #include "des.cuh"
 
@@ -56,14 +58,18 @@ __host__ void run_cpu_version(const char* key_alphabet, const int key_length, co
                               const int plaintext_length, const uint64_t ciphertext,
                               const int output_limit)
 {
+	printf("=== CPU ===\n");
+	std::chrono::steady_clock::time_point cpu_start, cpu_end;
+
 	uint64_t* plaintexts = new uint64_t[output_limit];
 	uint64_t* keys = new uint64_t[output_limit];
 
+	cpu_start = std::chrono::high_resolution_clock::now();
 	int count = cpu_brute_force(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, plaintexts,
 	                            keys, output_limit);
-
+	cpu_end = std::chrono::high_resolution_clock::now();
 	show_results(keys, plaintexts, count, output_limit);
-
+	printf("CPU time (all)             [ms]: %llu\n", std::chrono::duration_cast<std::chrono::milliseconds> (cpu_end - cpu_start).count());
 	delete[] plaintexts;
 	delete[] keys;
 }

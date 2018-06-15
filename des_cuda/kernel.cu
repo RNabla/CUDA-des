@@ -9,7 +9,6 @@
 
 int main(int argc, char** argv)
 {
-	char* alphabet;
 	char *key_alphabet,
 	     *plaintext_alphabet;
 	uint64_t ciphertext;
@@ -17,23 +16,6 @@ int main(int argc, char** argv)
 	    plaintext_length;
 	bool run_cpu;
 
-	//transform_key_alphabet("eeadcbadcba", "xD");
-
-	//char* a1 = "abcde";
-	//uint64_t plaintext1 = init_combinations(a1, 5, 6, 0);
-	//for (uint64_t i = 0;i<10;i++)
-	//{
-	//	print_as_hex(plaintext1);
-	//	plaintext1 = next_combination(plaintext1, a1, 5, 1);
-	//	printf("\n");
-	//	uint64_t plaintext2 = create_combination(i, a1, 5, 6);
-	//	print_as_hex(plaintext2);
-	//	printf("\n");
-	//}
-
-	//create_pattern(321654, "abcde", 5, 6);
-
-	//	parse_runtime_parameters(argc, argv, &alphabet, &ciphertext, &key_length, &plaintext_length, &run_cpu);
 	parse_runtime_parameters(argc, argv, &key_alphabet, &key_length, &plaintext_alphabet, &plaintext_length, &ciphertext,
 	                         &run_cpu);
 
@@ -43,6 +25,8 @@ int main(int argc, char** argv)
 	if (run_cpu)
 		run_cpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, 100);
 
+	free(key_alphabet);
+	free(plaintext_alphabet);
 
 	return 0;
 }

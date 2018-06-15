@@ -1,4 +1,5 @@
 #include "runtime_parameters.hpp"
+#include "misc.hpp"
 
 #include <algorithm>
 
@@ -165,7 +166,7 @@ char* transform_key_alphabet(char* key_alphabet, char* prog_name)
 		usage(prog_name);
 	}
 
-	char* alphabet = new char[length];
+	char* alphabet = new char[length + 1];
 	for (int i = 0; i < length; i++)
 	{
 		alphabet[i] = key_alphabet[i];
@@ -201,7 +202,7 @@ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name)
 		usage(prog_name);
 	}
 
-	char* alphabet = new char[length];
+	char* alphabet = new char[length + 1];
 	for (int i = 0; i < length; i++)
 	{
 		alphabet[i] = plaintext_alphabet[i];
@@ -217,11 +218,12 @@ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name)
 void print_parameters(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
                       const int plaintext_length, const uint64_t cipher, const bool run_cpu)
 {
+	printf("=== PARAMETERS ===\n");
 	printf("Key alphabet:        %s\n", key_alphabet);
 	printf("Key length:          %d\n", key_length);
 	printf("Plaintext alphabet:  %s\n", plaintext_alphabet);
 	printf("Plaintext length:    %d\n", plaintext_length);
 	printf("Cipher :             ");
-	//hex_dump(cipher, true);
-	printf("Run cpu version:     %s\n", run_cpu ? "True" : "False");
+	hex_dump(cipher, true);
+	printf("Run cpu version:     %s\n\n", run_cpu ? "True" : "False");
 }
