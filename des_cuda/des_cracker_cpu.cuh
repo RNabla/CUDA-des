@@ -69,7 +69,8 @@ __host__ void run_cpu_version(const char* key_alphabet, const int key_length, co
 	                            keys, output_limit);
 	cpu_end = std::chrono::high_resolution_clock::now();
 	show_results(keys, plaintexts, count, output_limit);
-	printf("CPU time (all)             [ms]: %llu\n", std::chrono::duration_cast<std::chrono::milliseconds> (cpu_end - cpu_start).count());
+	printf("CPU time (all)             [ms]: %llu\n",
+	       std::chrono::duration_cast<std::chrono::milliseconds>(cpu_end - cpu_start).count());
 	delete[] plaintexts;
 	delete[] keys;
 }

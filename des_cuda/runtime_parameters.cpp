@@ -116,7 +116,6 @@ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* k
 		usage(argv[0]);
 	}
 
-	//check_alphabet(*alphabet, argv[0]);
 	check_cipher(cipher_hex, argv[0]);
 	*key_alphabet = transform_key_alphabet(*key_alphabet, argv[0]);
 	*plaintext_alphabet = transform_plaintext_alphabet(*plaintext_alphabet, argv[0]);

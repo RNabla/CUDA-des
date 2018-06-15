@@ -98,8 +98,8 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	const size_t key_alphabet_length = strlen(key_alphabet);
 	const size_t plaintext_alphabet_length = strlen(plaintext_alphabet);
 
-//	cudaEvent_t kernel_start,
-//	            kernel_stop;
+	//	cudaEvent_t kernel_start,
+	//	            kernel_stop;
 
 	dim3 threads_per_block,
 	     blocks;
@@ -111,8 +111,8 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpu_start = std::chrono::high_resolution_clock::now();
 	gpuErrchk(cudaDeviceSetLimit(cudaLimitMallocHeapSize, 128 * 1024 * 1024));
 	gpuErrchk(cudaSetDevice(0));
-//	gpuErrchk(cudaEventCreate(&kernel_start));
-//	gpuErrchk(cudaEventCreate(&kernel_stop));
+	//	gpuErrchk(cudaEventCreate(&kernel_start));
+	//	gpuErrchk(cudaEventCreate(&kernel_stop));
 	gpuErrchk(cudaMalloc(&d_key_alphabet, key_alphabet_length));
 	gpuErrchk(cudaMalloc(&d_plaintext_alphabet, plaintext_alphabet_length));
 	gpuErrchk(cudaMemcpy(d_key_alphabet, key_alphabet, key_alphabet_length, cudaMemcpyHostToDevice));
@@ -134,7 +134,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
 
-//	gpuErrchk(cudaEventRecord(kernel_start));
+	//	gpuErrchk(cudaEventRecord(kernel_start));
 	gpuErrchk(cudaGetLastError());
 
 	kernel <<<blocks, threads_per_block >>>(
@@ -153,9 +153,9 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	);
 
 	gpuErrchk(cudaGetLastError());
-//	gpuErrchk(cudaEventRecord(kernel_stop));
-//	gpuErrchk(cudaEventSynchronize(kernel_stop));
-//	gpuErrchk(cudaEventElapsedTime(&kernel_elapsed_time, kernel_start, kernel_stop));
+	//	gpuErrchk(cudaEventRecord(kernel_stop));
+	//	gpuErrchk(cudaEventSynchronize(kernel_stop));
+	//	gpuErrchk(cudaEventElapsedTime(&kernel_elapsed_time, kernel_start, kernel_stop));
 
 	gpuErrchk(cudaMemcpy(h_keys, d_keys, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaMemcpy(h_plaintexts, d_plaintexts, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
@@ -167,14 +167,15 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpuErrchk(cudaFree(d_count));
 	gpuErrchk(cudaFree(d_keys));
 	gpuErrchk(cudaFree(d_plaintexts));
-//	gpuErrchk(cudaEventDestroy(kernel_start));
-//	gpuErrchk(cudaEventDestroy(kernel_stop));
+	//	gpuErrchk(cudaEventDestroy(kernel_start));
+	//	gpuErrchk(cudaEventDestroy(kernel_stop));
 	gpu_end = std::chrono::high_resolution_clock::now();
 	show_results(h_keys, h_plaintexts, h_count, output_limit);
 
 	printf("GPU time (all)             [ms]: %llu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(gpu_end - gpu_start).count());
-	printf("GPU time (kernel)          [ms]: %llu\n", (unsigned long long)kernel_elapsed_time);
+	if (kernel_elapsed_time >= 0.0)
+		printf("GPU time (kernel)          [ms]: %llu\n", (unsigned long long)kernel_elapsed_time);
 
 	delete[]h_plaintexts;
 	delete[]h_keys;
