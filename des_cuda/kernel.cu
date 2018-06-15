@@ -10,9 +10,14 @@
 int main(int argc, char** argv)
 {
 	char* alphabet;
+	char *key_alphabet,
+	     *plaintext_alphabet;
 	uint64_t ciphertext;
-	int key_length, plaintext_length;
+	int key_length,
+	    plaintext_length;
 	bool run_cpu;
+
+	//transform_key_alphabet("eeadcbadcba", "xD");
 
 	//char* a1 = "abcde";
 	//uint64_t plaintext1 = init_combinations(a1, 5, 6, 0);
@@ -26,12 +31,20 @@ int main(int argc, char** argv)
 	//	printf("\n");
 	//}
 
-	create_pattern(321654, "abcde", 5, 6);
+	//create_pattern(321654, "abcde", 5, 6);
 
-	parse_runtime_parameters(argc, argv, &alphabet, &ciphertext, &key_length, &plaintext_length, &run_cpu);
+	//	parse_runtime_parameters(argc, argv, &alphabet, &ciphertext, &key_length, &plaintext_length, &run_cpu);
+	parse_runtime_parameters(argc, argv, &key_alphabet, &key_length, &plaintext_alphabet, &plaintext_length, &ciphertext,
+	                         &run_cpu);
+
+	print_parameters(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, run_cpu);
+
+	int key_alphabet_length = strlen(key_alphabet),
+		plaintext_alphabet_length = strlen(plaintext_alphabet);
+
+	run_gpu_version(alphabet, key_length, plaintext_length, ciphertext, 100);
 	if (run_cpu)
 		run_cpu_version(alphabet, key_length, plaintext_length, ciphertext, 100);
-	run_gpu_version(alphabet, key_length, plaintext_length, ciphertext, 100);
 
 
 	return 0;

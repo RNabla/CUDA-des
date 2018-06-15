@@ -14,9 +14,9 @@ __host__ void run_gpu_version(const char* alphabet, const int key_length, const 
 
 __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true);
 
-__global__ void kernel(const char* alphabet, const int alphabet_length, const int key_length,
-                       const int plaintext_length, const uint64_t ciphertext,
-                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
+__global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
+	const char* text_alphabet, const int text_alphabet_length, const int text_length, const uint64_t text_combinations,
+	const uint64_t ciphertext, const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
 
 __device__ uint64_t get_warp_id();
 
@@ -56,18 +56,17 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 	}
 }
 
-__global__ void kernel(const char* alphabet, const int alphabet_length, const int key_length,
-                       const int plaintext_length, const uint64_t ciphertext,
-                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
+__global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
+					const char* text_alphabet, const int text_alphabet_length, const int text_length, const uint64_t text_combinations,
+					const uint64_t ciphertext, const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
 	uint64_t warp_id = get_warp_id();
-	uint64_t plaintext_combinations = number_of_combinations(alphabet_length, plaintext_length);
 	uint64_t round_keys[16];
-	uint64_t key = create_pattern(warp_id, alphabet, alphabet_length, key_length);
+	uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
 	generate_round_keys(key, round_keys);
-	for (uint64_t j = threadIdx.x & 0x1fULL; j < plaintext_combinations; j += 32)
+	for (uint64_t j = threadIdx.x & 0x1fULL; j < text_combinations; j += 32)
 	{
-		uint64_t plaintext = create_pattern(j, alphabet, alphabet_length, key_length);
+		uint64_t plaintext = create_pattern(j, text_alphabet, text_alphabet_length, text_length);
 		if (ciphertext == des_encrypt(plaintext, round_keys))
 		{
 			int index = atomicAdd(count, 1);
@@ -123,7 +122,10 @@ __host__ void run_gpu_version(const char* alphabet, const int key_length, const 
 		d_alphabet,
 		strlen(alphabet),
 		key_length,
+		d_alphabet,
+		strlen(alphabet),
 		plaintext_length,
+		number_of_combinations(strlen(alphabet), plaintext_length),
 		ciphertext,
 		output_limit,
 		d_plaintexts,
