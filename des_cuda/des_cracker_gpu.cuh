@@ -16,8 +16,8 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 
 __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
                        const char* text_alphabet, const int text_alphabet_length, const int text_length,
-                       const uint64_t text_combinations, const uint64_t ciphertext, const int output_limit,
-                       uint64_t* const plaintexts, uint64_t* const keys, int* count);
+                       const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
+                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
 
 __device__ uint64_t get_warp_id();
 
@@ -59,23 +59,27 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 
 __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
                        const char* text_alphabet, const int text_alphabet_length, const int text_length,
-                       const uint64_t text_combinations, const uint64_t ciphertext, const int output_limit,
-                       uint64_t* const plaintexts, uint64_t* const keys, int* count)
+                       const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
+                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
 	uint64_t warp_id = get_warp_id();
-	uint64_t round_keys[16];
-	uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
-	generate_round_keys(key, round_keys);
-	for (uint64_t j = threadIdx.x & 0x1fULL; j < text_combinations; j += 32)
+	if (warp_id < key_combinations)
 	{
-		uint64_t plaintext = create_pattern(j, text_alphabet, text_alphabet_length, text_length);
-		if (ciphertext == des_encrypt(plaintext, round_keys))
+		uint64_t round_keys[16];
+		uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
+		generate_round_keys(key, round_keys);
+		for (uint64_t j = threadIdx.x & 0x1fULL; j < text_combinations; j += 32)
 		{
-			int index = atomicAdd(count, 1);
-			if (index < output_limit)
+			uint64_t plaintext = create_pattern(j, text_alphabet, text_alphabet_length, text_length);
+			if (ciphertext == des_encrypt(plaintext, round_keys))
 			{
-				keys[index] = key;
-				plaintexts[index] = plaintext;
+				printf("Found\n");
+				int index = atomicAdd(count, 1);
+				if (index < output_limit)
+				{
+					keys[index] = key;
+					plaintexts[index] = plaintext;
+				}
 			}
 		}
 	}
@@ -95,8 +99,8 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	         *h_plaintexts = new uint64_t[output_limit],
 	         *h_keys = new uint64_t[output_limit];
 
-	const size_t key_alphabet_length = strlen(key_alphabet);
-	const size_t plaintext_alphabet_length = strlen(plaintext_alphabet);
+	const int32_t key_alphabet_length = (int32_t)strlen(key_alphabet);
+	const int32_t plaintext_alphabet_length = (int32_t)strlen(plaintext_alphabet);
 
 	//	cudaEvent_t kernel_start,
 	//	            kernel_stop;
@@ -130,13 +134,14 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		printf("Couldn't create suitable grid");
 		return;
 	}
-	printf("[DEBUG - GPU] keys to check: %d\n", keys_to_check);
+	printf("[DEBUG - GPU] keys to check: %llu\n", keys_to_check);
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
 
 	//	gpuErrchk(cudaEventRecord(kernel_start));
 	gpuErrchk(cudaGetLastError());
 
+	uint64_t plaintexts_to_check = number_of_combinations(plaintext_alphabet_length, plaintext_length);
 	kernel <<<blocks, threads_per_block >>>(
 		d_key_alphabet,
 		key_alphabet_length,
@@ -144,7 +149,8 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		d_plaintext_alphabet,
 		plaintext_alphabet_length,
 		plaintext_length,
-		number_of_combinations(plaintext_alphabet_length, plaintext_length),
+		plaintexts_to_check,
+		keys_to_check,
 		ciphertext,
 		output_limit,
 		d_plaintexts,
@@ -152,6 +158,8 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		d_count
 	);
 
+	gpuErrchk(cudaGetLastError());
+	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk(cudaGetLastError());
 	//	gpuErrchk(cudaEventRecord(kernel_stop));
 	//	gpuErrchk(cudaEventSynchronize(kernel_stop));

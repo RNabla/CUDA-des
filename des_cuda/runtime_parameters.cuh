@@ -1,14 +1,38 @@
-#include "runtime_parameters.hpp"
-#include "misc.hpp"
+#pragma once
 
+#include "cuda_runtime.h"
+#include <cstdint>
 #include <algorithm>
 
-void usage(char* name)
+#pragma region headers
+
+__host__ void usage(char* name);
+
+__host__ void check_cipher(char* cipher, char* prog_name);
+
+__host__ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* key_length,
+                                       char** plaintext_alphabet,
+                                       int* plaintext_length, uint64_t* ciphertext, bool* run_cpu, bool* run_gpu);
+
+__host__ char* transform_key_alphabet(char* key_alphabet, char* prog_name);
+
+__host__ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name);
+
+__host__ void print_parameters(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
+                               const int plaintext_length, const uint64_t cipher, const bool run_cpu,
+                               const bool run_gpu);
+
+
+#pragma endregion
+
+#pragma region implementation
+
+__host__ void usage(char* name)
 {
 	printf("%s - CUDA DES Cracker - Andrzej Nowikowski - 2018\n\n", name);
 	printf("Usage: \n");
 	printf(
-		"%s --cipher <hex> --key-alphabet <ASCII> [--key-length <length>] --text-alphabet <ASCII> [--text-length <length>] [--cpu]\n\n",
+		"%s --cipher <hex> --key-alphabet <ASCII> [--key-length <length>] --text-alphabet <ASCII> [--text-length <length>] [--cpu] [--gpu]\n\n",
 		name);
 	printf("    --cipher <hex> \t\t Hexencoded cipher to match against\n");
 	printf("    --key-alphabet <ASCII> \t Alphabet of the possible chars in key\n");
@@ -16,10 +40,11 @@ void usage(char* name)
 	printf("    --text-alphabet <ASCII> \t Alphabet of the possible chars in text\n");
 	printf("    --text-length <length=8> \t Length of the plaintext to brute. Length should be between 1 and 8\n");
 	printf("    --cpu \t\t\t Try run CPU version of cracker\n");
+	printf("    --gpu \t\t\t Try run GPU version of cracker\n");
 	exit(1);
 }
 
-void check_cipher(char* cipher, char* prog_name)
+__host__ void check_cipher(char* cipher, char* prog_name)
 {
 	if (cipher == nullptr)
 	{
@@ -47,8 +72,9 @@ void check_cipher(char* cipher, char* prog_name)
 	}
 }
 
-void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* key_length, char** plaintext_alphabet,
-                              int* plaintext_length, uint64_t* ciphertext, bool* run_cpu)
+__host__ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* key_length,
+                                       char** plaintext_alphabet,
+                                       int* plaintext_length, uint64_t* ciphertext, bool* run_cpu, bool* run_gpu)
 {
 	bool cipher_parameter = false,
 		key_alphabet_parameter = false,
@@ -58,6 +84,7 @@ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* k
 
 	char* cipher_hex = nullptr;
 	*run_cpu = false;
+	*run_gpu = false;
 	*key_length = 8;
 	*plaintext_length = 8;
 
@@ -66,6 +93,10 @@ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* k
 		if (strcmp(argv[i], "--cpu") == 0)
 		{
 			*run_cpu = true;
+		}
+		else if (strcmp(argv[i], "--gpu") == 0)
+		{
+			*run_gpu = true;
 		}
 	}
 
@@ -149,16 +180,22 @@ void parse_runtime_parameters(int argc, char** argv, char** key_alphabet, int* k
 	}
 
 	*ciphertext = strtoull(cipher_hex, nullptr, 16);
+
+	if (!*run_gpu && !*run_cpu)
+	{
+		printf("Missing --cpu or --gpu parameter\n");
+		usage(argv[0]);
+	}
 }
 
-char* transform_key_alphabet(char* key_alphabet, char* prog_name)
+__host__ char* transform_key_alphabet(char* key_alphabet, char* prog_name)
 {
 	if (key_alphabet == nullptr)
 	{
 		printf("--key-alphabet: Provided alphabet is empty\n");
 		usage(prog_name);
 	}
-	int length = (int)strlen(key_alphabet);
+	size_t length = strlen(key_alphabet);
 	if (length < 2)
 	{
 		printf("--key-alphabet: Provided alphabet is too short. Min length is 2\n");
@@ -187,7 +224,7 @@ char* transform_key_alphabet(char* key_alphabet, char* prog_name)
 	return alphabet;
 }
 
-char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name)
+__host__ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name)
 {
 	if (plaintext_alphabet == nullptr)
 	{
@@ -214,8 +251,8 @@ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog_name)
 	return alphabet;
 }
 
-void print_parameters(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
-                      const int plaintext_length, const uint64_t cipher, const bool run_cpu)
+__host__ void print_parameters(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
+                      const int plaintext_length, const uint64_t cipher, const bool run_cpu, const bool run_gpu)
 {
 	printf("=== PARAMETERS ===\n");
 	printf("Key alphabet:        %s\n", key_alphabet);
@@ -224,5 +261,9 @@ void print_parameters(const char* key_alphabet, const int key_length, const char
 	printf("Plaintext length:    %d\n", plaintext_length);
 	printf("Cipher :             ");
 	hex_dump(cipher, true);
-	printf("Run cpu version:     %s\n\n", run_cpu ? "True" : "False");
+	printf("Run cpu version:     %s\n", run_cpu ? "True" : "False");
+	printf("Run gpu version:     %s\n\n", run_gpu ? "True" : "False");
 }
+
+
+#pragma endregion

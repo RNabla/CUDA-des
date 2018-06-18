@@ -97,12 +97,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="des_utils.cuh" />
     <ClInclude Include="des_cracker_gpu.cuh" />
     <ClInclude Include="misc.cuh" />
-    <ClInclude Include="misc.hpp" />
-    <ClInclude Include="runtime_parameters.hpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="misc.cpp" />
-    <ClCompile Include="runtime_parameters.cpp" />
+    <ClInclude Include="runtime_parameters.cuh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

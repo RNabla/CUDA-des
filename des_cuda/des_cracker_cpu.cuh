@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <cstring>
 #include <chrono>
-#include "misc.hpp"
 #include "misc.cuh"
 #include "des.cuh"
 
@@ -25,8 +24,8 @@ __host__ int cpu_brute_force(const char* key_alphabet, const int key_length, con
                              const int plaintext_length, const uint64_t ciphertext,
                              uint64_t* const plaintexts, uint64_t* const keys, const int output_size)
 {
-	size_t key_alphabet_length = strlen(key_alphabet);
-	size_t plaintext_alphabet_length = strlen(plaintext_alphabet);
+	int32_t key_alphabet_length = (int32_t) strlen(key_alphabet);
+	int32_t plaintext_alphabet_length = (int32_t) strlen(plaintext_alphabet);
 	uint64_t key_combinations = number_of_combinations(key_alphabet_length, key_length);
 	uint64_t plaintext_combinations = number_of_combinations(plaintext_alphabet_length, plaintext_length);
 	uint64_t round_keys[16];
