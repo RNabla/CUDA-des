@@ -61,25 +61,8 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 
 __device__ void setup_shared_memory(int* ptr, uint64_t key, const int warps_per_block)
 {
-	int i = 0;
-	int offset = 0;
-	for (i = 0; i < 16; i++)
-		ptr[offset++] = d_rot[i];
-	for (i = 0; i < 56; i++)
-		ptr[offset++] = d_pc1[i];
-	for (i = 0; i < 48; i++)
-		ptr[offset++] = d_pc2[i];
-	for (i = 0; i < 64; i++)
-		ptr[offset++] = d_ip[i];
-	for (i = 0; i < 64; i++)
-		ptr[offset++] = d_ip_rev[i];
-	for (i = 0; i < 48; i++)
-		ptr[offset++] = d_e[i];
-	for (i = 0; i < 32; i++)
-		ptr[offset++] = d_p[i];
-	for (i = 0; i < 512; i++)
-		ptr[offset++] = d_s[i];
-
+	for (int i = 0; i < 840; i++)
+		ptr[i] = d_constants[i];
 	//*(uint64_t*)(&ptr[840 + 32 * warps_per_block]) = key;
 	*(uint64_t*)(ptr + 968) = key;
 }
