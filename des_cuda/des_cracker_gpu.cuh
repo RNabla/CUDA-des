@@ -68,13 +68,11 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
 	__shared__ uint64_t rounds_keys[4 * 16];
 	if (warp_id < key_combinations)
 	{
-		/*if (thread_id == 0)
-			printf("%llu\n", warp_id);*/
-		//uint64_t round_keys[16];
-
 		uint64_t *round_keys = &rounds_keys[(threadIdx.x / 32) * 16];
 		uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
-		generate_round_keys(key, round_keys);
+		if (thread_id == 0) {
+			generate_round_keys(key, round_keys);
+		}
 		for (uint64_t i = thread_id; i < text_combinations; i += 32)
 		{
 			uint64_t plaintext = create_pattern(i, text_alphabet, text_alphabet_length, text_length);
