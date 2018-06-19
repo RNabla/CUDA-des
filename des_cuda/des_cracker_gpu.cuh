@@ -14,8 +14,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 
 __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true);
 
-__global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
-                       const char* text_alphabet, const int text_alphabet_length, const int text_length,
+__global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
                        const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
                        const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
 
@@ -67,11 +66,14 @@ __device__ void setup_shared_memory(int* ptr, uint64_t key, const int warps_per_
 	*(uint64_t*)(ptr + 968) = key;
 }
 
-__global__ void kernel(const char* key_alphabet, const int key_alphabet_length, const int key_length,
-                       const char* text_alphabet, const int text_alphabet_length, const int text_length,
+__global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
                        const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
                        const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
+#define key_alphabet_length (lengths >> 24)
+#define key_length ((lengths >> 16) & 0xff)
+#define text_alphabet_length ((lengths >> 8) & 0xff)
+#define text_length (lengths & 0xff)
 	uint64_t warp_id = get_warp_id();
 	uint64_t thread_id = threadIdx.x & 0x1f;
 	int local_warp_id = threadIdx.x / 32;
@@ -107,7 +109,6 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
 	const int warps_per_block = 4;
 	if (warp_id < key_combinations)
 	{
-		
 		uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
 		uint64_t* round_keys = (uint64_t*)(cache + 840 + local_warp_id * 32);
 		if (thread_id == 0)
@@ -115,7 +116,7 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
 			setup_shared_memory(cache, key, warps_per_block);
 			generate_round_keys(key, round_keys, cache, cache + 16, cache + 72);
 		}
-		for (uint64_t i =thread_id; i < text_combinations; i += 32)
+		for (uint64_t i = thread_id; i < text_combinations; i += 32)
 		{
 			uint64_t plaintext = create_pattern(i, text_alphabet, text_alphabet_length, text_length);
 			if (ciphertext == des_encrypt(plaintext, round_keys, cache + 120, cache + 184, cache + 248, cache + 296,
@@ -131,6 +132,10 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
 			}
 		}
 	}
+#undef key_alphabet_length
+#undef key_length
+#undef text_alphabet_length
+#undef text_length
 }
 
 __host__ void run_gpu_version(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
@@ -193,13 +198,13 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpuErrchk(cudaEventRecord(kernel_start));
 	gpuErrchk(cudaGetLastError());
 
+
+	uint32_t lengths = (key_alphabet_length << 24) | (key_length << 16) | (plaintext_alphabet_length << 8) | plaintext_length;
+
 	kernel <<<blocks, threads_per_block >>>(
 		d_key_alphabet,
-		key_alphabet_length,
-		key_length,
 		d_plaintext_alphabet,
-		plaintext_alphabet_length,
-		plaintext_length,
+		lengths,
 		plaintexts_to_check,
 		keys_to_check,
 		ciphertext,
