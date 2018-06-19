@@ -1,6 +1,6 @@
 #pragma once
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-#include <cstdint>
+#include <stdint.h>
 #include <cstring>
 #include <cmath>
 #include "misc.cuh"
@@ -63,17 +63,23 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
                        const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
 	uint64_t warp_id = get_warp_id();
+	uint64_t thread_id = threadIdx.x & 0x1f;
+
+	__shared__ uint64_t rounds_keys[4 * 16];
 	if (warp_id < key_combinations)
 	{
-		uint64_t round_keys[16];
+		/*if (thread_id == 0)
+			printf("%llu\n", warp_id);*/
+		//uint64_t round_keys[16];
+
+		uint64_t *round_keys = &rounds_keys[(threadIdx.x / 32) * 16];
 		uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
 		generate_round_keys(key, round_keys);
-		for (uint64_t j = threadIdx.x & 0x1fULL; j < text_combinations; j += 32)
+		for (uint64_t i = thread_id; i < text_combinations; i += 32)
 		{
-			uint64_t plaintext = create_pattern(j, text_alphabet, text_alphabet_length, text_length);
+			uint64_t plaintext = create_pattern(i, text_alphabet, text_alphabet_length, text_length);
 			if (ciphertext == des_encrypt(plaintext, round_keys))
 			{
-				printf("Found\n");
 				int index = atomicAdd(count, 1);
 				if (index < output_limit)
 				{
@@ -129,19 +135,20 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpuErrchk(cudaMemset(d_plaintexts, 0, sizeof(uint64_t) * output_limit));
 
 	uint64_t keys_to_check = number_of_combinations(key_alphabet_length, key_length);
-	if (!calculate_distribution(keys_to_check * 32, &threads_per_block, &blocks))
+	uint64_t plaintexts_to_check = number_of_combinations(plaintext_alphabet_length, plaintext_length);
+	uint64_t threads_needed = keys_to_check * 32;
+	if (!calculate_distribution(threads_needed, &threads_per_block, &blocks))
 	{
 		printf("Couldn't create suitable grid");
 		return;
 	}
-	printf("[DEBUG - GPU] keys to check: %llu\n", keys_to_check);
+	printf("[DEBUG - GPU] threads needed:    %d\n", threads_needed);
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
 
 	//	gpuErrchk(cudaEventRecord(kernel_start));
 	gpuErrchk(cudaGetLastError());
 
-	uint64_t plaintexts_to_check = number_of_combinations(plaintext_alphabet_length, plaintext_length);
 	kernel <<<blocks, threads_per_block >>>(
 		d_key_alphabet,
 		key_alphabet_length,

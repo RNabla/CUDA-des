@@ -252,8 +252,12 @@ __host__ char* transform_plaintext_alphabet(char* plaintext_alphabet, char* prog
 }
 
 __host__ void print_parameters(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
-                      const int plaintext_length, const uint64_t cipher, const bool run_cpu, const bool run_gpu)
+                               const int plaintext_length, const uint64_t cipher, const bool run_cpu,
+                               const bool run_gpu)
 {
+	uint64_t keys_to_check = number_of_combinations(strlen(key_alphabet), key_length),
+		plaintexts_to_check = number_of_combinations(strlen(plaintext_alphabet), plaintext_length);
+
 	printf("=== PARAMETERS ===\n");
 	printf("Key alphabet:        %s\n", key_alphabet);
 	printf("Key length:          %d\n", key_length);
@@ -261,6 +265,9 @@ __host__ void print_parameters(const char* key_alphabet, const int key_length, c
 	printf("Plaintext length:    %d\n", plaintext_length);
 	printf("Cipher :             ");
 	hex_dump(cipher, true);
+	printf("\nKeys to check:       %llu\n", keys_to_check);
+	printf("Texts to check:      %llu\n\n", plaintexts_to_check);
+
 	printf("Run cpu version:     %s\n", run_cpu ? "True" : "False");
 	printf("Run gpu version:     %s\n\n", run_gpu ? "True" : "False");
 }

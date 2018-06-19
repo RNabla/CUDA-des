@@ -33,6 +33,7 @@ __host__ int cpu_brute_force(const char* key_alphabet, const int key_length, con
 	int count = 0;
 	for (uint64_t i = 0; i < key_combinations; i++)
 	{
+		printf("\r%d / %d", i, key_combinations);
 		uint64_t key = create_pattern(i, key_alphabet, key_alphabet_length, key_length);
 		generate_round_keys(key, round_keys);
 
