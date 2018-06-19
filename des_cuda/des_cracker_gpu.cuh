@@ -15,12 +15,10 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true);
 
 __global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
-                       const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
+                       const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext,
                        const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
 
-__device__ uint64_t get_warp_id();
-
-__device__ void setup_shared_memory(int* ptr, uint64_t key, const int warps_per_block);
+__device__ uint32_t get_warp_id();
 
 __host__ bool calculate_distribution(uint64_t threads_needed, dim3* threads_per_block, dim3* blocks)
 {
@@ -58,69 +56,76 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 	}
 }
 
-__device__ void setup_shared_memory(int* ptr, uint64_t key, const int warps_per_block)
-{
-	for (int i = 0; i < 840; i++)
-		ptr[i] = d_constants[i];
-	//*(uint64_t*)(&ptr[840 + 32 * warps_per_block]) = key;
-	*(uint64_t*)(ptr + 968) = key;
-}
-
-__global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
-                       const uint64_t text_combinations, const uint64_t key_combinations, const uint64_t ciphertext,
-                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
-{
 #define key_alphabet_length (lengths >> 24)
 #define key_length ((lengths >> 16) & 0xff)
 #define text_alphabet_length ((lengths >> 8) & 0xff)
 #define text_length (lengths & 0xff)
-	uint64_t warp_id = get_warp_id();
-	uint64_t thread_id = threadIdx.x & 0x1f;
-	int local_warp_id = threadIdx.x / 32;
-	// shared memory layout
-	//   name #  rot  |  pc1 |  pc2 |   ip | ip_rev |    e |    p |    s | round_keys |  key  
-	//   size #   64  |  224 |  192 |  256 |    256 |  192 |  128 | 2048 |        512 |    8 
-	// offset #    0  |   64 |  288 |  480 |    732 |  992 | 1184 | 1312 |       3360 | 3872 
+#define warps_per_block (4)
+#define round_keys ((uint64_t*)(cache + 840 + local_warp_id * 32))
+#define warp_id (get_warp_id())
+#define thread_id (threadIdx.x & 0x1f)
+#define local_warp_id (threadIdx.x / 32)
+#define rot (cache)
+#define pc1 (cache+16)
+#define pc2 (cache+72)
+#define ip (cache+120)
+#define ip_rev (cache+184)
+#define e (cache+248)
+#define p (cache+296)
+#define s (cache+328)
+//#define key ((uint64_t*)(cache+968+thread_id*2))
+__global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
+	const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext,
+	const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
+{
+
+	//	uint64_t warp_id = get_warp_id();
+	//  uint64_t thread_id = threadIdx.x & 0x1f;
+	//	int local_warp_id = threadIdx.x / 32;
+		// shared memory layout
+		//   name #  rot  |  pc1 |  pc2 |   ip | ip_rev |    e |    p |    s | round_keys |  key  
+		//   size #   64  |  224 |  192 |  256 |    256 |  192 |  128 | 2048 |        512 |    8 
+		// offset #    0  |   64 |  288 |  480 |    732 |  992 | 1184 | 1312 |       3360 | 3872 
 
 
-	// rot         int32_t[16]
-	// pc1         int32_t[56]
-	// pc2         int32_t[48]
-	// ip          int32_t[64]
-	// ip_rev      int32_t[64]
-	// e           int32_t[48[
-	// p           int32_t[32]
-	// s           int32_t[512]	
-	// round_keys  uint64_t[16] {4}
-	// key         uint64_t
+		// rot         int32_t[16]
+		// pc1         int32_t[56]
+		// pc2         int32_t[48]
+		// ip          int32_t[64]
+		// ip_rev      int32_t[64]
+		// e           int32_t[48[
+		// p           int32_t[32]
+		// s           int32_t[512]	
+		// round_keys  uint64_t[16] {4}
+		// key         uint64_t
 
 	__shared__ int cache[
 		16 + /* rot */
-		56 + /* pc1 */
-		48 + /* pc2 */
-		64 + /* ip */
-		64 + /* ip_rev */
-		48 + /* e */
-		32 + /* p */
-		512 + /* s */
-		16 * 2 * 4 + /* round keys (16 keys * 2 sizeof int * 4 warps) */
-		2 /* key */
+			56 + /* pc1 */
+			48 + /* pc2 */
+			64 + /* ip */
+			64 + /* ip_rev */
+			48 + /* e */
+			32 + /* p */
+			512 + /* s */
+			16 * 2 * 4 + /* round keys (16 keys * 2 sizeof int * 4 warps) */
+			8 /* key */
 	];
-	const int warps_per_block = 4;
 	if (warp_id < key_combinations)
 	{
+		for (int i = threadIdx.x; i < 840; i += warps_per_block * 32)
+			cache[i] = d_constants[i];
 		uint64_t key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
-		uint64_t* round_keys = (uint64_t*)(cache + 840 + local_warp_id * 32);
-		if (thread_id == 0)
+		if (local_warp_id == 0 && thread_id < warps_per_block)
 		{
-			setup_shared_memory(cache, key, warps_per_block);
-			generate_round_keys(key, round_keys, cache, cache + 16, cache + 72);
+			//*key = create_pattern(warp_id, key_alphabet, key_alphabet_length, key_length);
+			generate_round_keys(key, round_keys, rot, pc1, pc2);
 		}
-		for (uint64_t i = thread_id; i < text_combinations; i += 32)
+		__syncthreads();
+		for (uint32_t i = thread_id; i < text_combinations; i += 32)
 		{
 			uint64_t plaintext = create_pattern(i, text_alphabet, text_alphabet_length, text_length);
-			if (ciphertext == des_encrypt(plaintext, round_keys, cache + 120, cache + 184, cache + 248, cache + 296,
-			                              cache + 328))
+			if (ciphertext == des_encrypt(plaintext, round_keys, ip, ip_rev, e, p, s))
 			{
 				int index = atomicAdd(count, 1);
 				if (index < output_limit)
@@ -132,11 +137,26 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 			}
 		}
 	}
+}
 #undef key_alphabet_length
 #undef key_length
 #undef text_alphabet_length
 #undef text_length
-}
+#undef warps_per_block
+#undef round_keys
+#undef key
+#undef warp_id 
+#undef thread_id 
+#undef local_warp_id 
+#undef rot 
+#undef pc1
+#undef pc2
+#undef ip
+#undef ip_rev 
+#undef e 
+#undef p 
+#undef s 
+
 
 __host__ void run_gpu_version(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
                               const int plaintext_length, const uint64_t ciphertext,
@@ -244,12 +264,12 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 }
 
 
-__device__ uint64_t get_warp_id()
+__device__ uint32_t get_warp_id()
 {
-	uint64_t blockId = blockIdx.x
+	uint32_t blockId = blockIdx.x
 		+ blockIdx.y * gridDim.x
 		+ gridDim.x * gridDim.y * blockIdx.z;
-	return (blockId * blockDim.x + threadIdx.x) / (uint64_t)32;
+	return (blockId * blockDim.x + threadIdx.x) / (uint32_t)32;
 }
 
 #pragma endregion
