@@ -114,12 +114,8 @@ __global__ void kernel(const char* key_alphabet, const int key_alphabet_length, 
 		{
 			setup_shared_memory(cache, key, warps_per_block);
 			generate_round_keys(key, round_keys, cache, cache + 16, cache + 72);
-			//*(uint64_t*)(cache + 968) = key;
-			//uint64_t from_cache = *(uint64_t*)(cache + 968);
-			//if (from_cache != key)
-			//	printf("key is %llu and in shared is %llu\n", key, *(uint64_t*)(cache + 968));
 		}
-		for (uint64_t i = thread_id; i < text_combinations; i += 32)
+		for (uint64_t i =thread_id; i < text_combinations; i += 32)
 		{
 			uint64_t plaintext = create_pattern(i, text_alphabet, text_alphabet_length, text_length);
 			if (ciphertext == des_encrypt(plaintext, round_keys, cache + 120, cache + 184, cache + 248, cache + 296,
@@ -188,9 +184,11 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		printf("Couldn't create suitable grid");
 		return;
 	}
-	printf("[DEBUG - GPU] threads needed:    %d\n", threads_needed);
+#ifdef _DEBUG
+	printf("[DEBUG - GPU] threads needed:    %llu\n", threads_needed);
 	printf("[DEBUG - GPU] threads per block: %d\n", threads_per_block.x);
 	printf("[DEBUG - GPU] block_x: %d block_y %d block_z %d\n", blocks.x, blocks.y, blocks.z);
+#endif
 
 	gpuErrchk(cudaEventRecord(kernel_start));
 	gpuErrchk(cudaGetLastError());
@@ -211,8 +209,6 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		d_count
 	);
 
-	gpuErrchk(cudaGetLastError());
-	gpuErrchk(cudaDeviceSynchronize());
 	gpuErrchk(cudaGetLastError());
 	gpuErrchk(cudaEventRecord(kernel_stop));
 	gpuErrchk(cudaEventSynchronize(kernel_stop));

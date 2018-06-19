@@ -255,8 +255,8 @@ __host__ void print_parameters(const char* key_alphabet, const int key_length, c
                                const int plaintext_length, const uint64_t cipher, const bool run_cpu,
                                const bool run_gpu)
 {
-	uint64_t keys_to_check = number_of_combinations(strlen(key_alphabet), key_length),
-		plaintexts_to_check = number_of_combinations(strlen(plaintext_alphabet), plaintext_length);
+	uint64_t keys_to_check = number_of_combinations((const int)strlen(key_alphabet), key_length),
+		plaintexts_to_check = number_of_combinations((const int)strlen(plaintext_alphabet), plaintext_length);
 
 	printf("=== PARAMETERS ===\n");
 	printf("Key alphabet:        %s\n", key_alphabet);
