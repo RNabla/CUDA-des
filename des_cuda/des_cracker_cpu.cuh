@@ -35,12 +35,12 @@ __host__ int cpu_brute_force(const char* key_alphabet, const int key_length, con
 	{
 		printf("\r%d / %d", i, key_combinations);
 		uint64_t key = create_pattern(i, key_alphabet, key_alphabet_length, key_length);
-		generate_round_keys(key, round_keys);
+		generate_round_keys(key, round_keys, h_rot, h_pc1, h_pc2);
 
 		for (uint64_t j = 0; j < plaintext_combinations; j++)
 		{
 			uint64_t plaintext = create_pattern(j, plaintext_alphabet, plaintext_alphabet_length, plaintext_length);
-			if (ciphertext == des_encrypt(plaintext, round_keys))
+			if (ciphertext == des_encrypt(plaintext, round_keys, h_ip, h_ip_rev, h_e, h_p, h_s))
 			{
 				if (count < output_size)
 				{
