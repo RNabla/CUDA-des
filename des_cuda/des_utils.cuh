@@ -70,7 +70,7 @@ __host__ __device__ uint64_t permutated_choice_2(const uint64_t c, const uint64_
 
 __host__ __device__ uint64_t f(uint64_t r, const uint64_t key)
 {
-	const int *e, *p, **s;
+	const int *e, *p, *s;
 #if __CUDA_ARCH__
 	e = d_e;
 	p = d_p;
@@ -93,7 +93,7 @@ __host__ __device__ uint64_t f(uint64_t r, const uint64_t key)
 		int inner = (r & (0xFULL << (59 - 6 * i))) >> (59 - 6 * i);
 
 
-		uint64_t piece = s[i][outer << 4 | inner];
+		uint64_t piece = s[i * 64 + (outer << 4 | inner)];
 
 		result ^= piece << (60 - 4 * i);
 	}
