@@ -5,7 +5,8 @@
 
 #pragma region headers
 
-__host__ __device__ uint64_t create_pattern(uint64_t combination_number, const char* alphabet,
+template<class T>
+__host__ __device__ uint64_t create_pattern(uint64_t combination_number, const T* alphabet,
                                             const int32_t alphabet_length,
                                             const int32_t segment_length);
 
@@ -21,7 +22,8 @@ __host__ void show_results(const uint64_t* const keys, const uint64_t* const pla
 
 #pragma region implementation
 
-__host__ __device__ uint64_t create_pattern(uint64_t combination_number, const char* alphabet,
+template<class T>
+__host__ __device__ uint64_t create_pattern(uint64_t combination_number, const T* alphabet,
                                             const int32_t alphabet_length,
                                             const int32_t segment_length)
 {
