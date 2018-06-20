@@ -1,5 +1,6 @@
 #pragma once
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+#define warps_per_block (4)
 #include <stdint.h>
 #include <cstring>
 #include <cmath>
@@ -20,28 +21,7 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 
 __device__ uint32_t get_warp_id();
 
-__host__ bool calculate_distribution(uint64_t threads_needed, dim3* threads_per_block, dim3* blocks)
-{
-	const uint32_t threads_in_block = (uint32_t)(threads_needed >= 128L ? 128L : threads_needed);
-	uint64_t blocks_needed = (long)ceilf(threads_needed / (float)threads_in_block);
-	const uint32_t block_x = (uint32_t)(blocks_needed >= 1024L ? 1024L : blocks_needed);
-	blocks_needed = (int)ceilf(blocks_needed / (float)block_x);
-	const uint32_t block_y = (uint32_t)(blocks_needed >= 1024L ? 1024L : blocks_needed);
-	blocks_needed = (int)ceilf(blocks_needed / (float)block_y);
-	if (blocks_needed >= 64L)
-		return false;
-	const uint32_t block_z = (uint32_t)blocks_needed;
-
-	threads_per_block->x = threads_in_block;
-	threads_per_block->y = 1;
-	threads_per_block->z = 1;
-
-	blocks->x = block_x;
-	blocks->y = block_y;
-	blocks->z = block_z;
-
-	return true;
-}
+__host__ bool calculate_distribution(uint64_t threads_needed, dim3* threads_per_block, dim3* blocks);
 
 #pragma endregion
 
@@ -60,7 +40,7 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 #define key_length ((lengths >> 16) & 0xff)
 #define text_alphabet_length ((lengths >> 8) & 0xff)
 #define text_length (lengths & 0xff)
-#define warps_per_block (4)
+
 #define round_keys ((uint64_t*)(cache + 840 + local_warp_id * 32))
 #define warp_id (get_warp_id())
 #define thread_id (threadIdx.x & 0x1f)
@@ -79,25 +59,27 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 	const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
 {
 
-	//	uint64_t warp_id = get_warp_id();
-	//  uint64_t thread_id = threadIdx.x & 0x1f;
-	//	int local_warp_id = threadIdx.x / 32;
-		// shared memory layout
-		//   name #  rot  |  pc1 |  pc2 |   ip | ip_rev |    e |    p |    s | round_keys |  key  
-		//   size #   64  |  224 |  192 |  256 |    256 |  192 |  128 | 2048 |        512 |    8 
-		// offset #    0  |   64 |  288 |  480 |    732 |  992 | 1184 | 1312 |       3360 | 3872 
+#pragma region doc
 
+	// lengths layout
+	// key_alphabet_length | key_length | text_alphabet_length | text_length
 
-		// rot         int32_t[16]
-		// pc1         int32_t[56]
-		// pc2         int32_t[48]
-		// ip          int32_t[64]
-		// ip_rev      int32_t[64]
-		// e           int32_t[48[
-		// p           int32_t[32]
-		// s           int32_t[512]	
-		// round_keys  uint64_t[16] {4}
-		// key         uint64_t
+	// shared memory layout (for warps_per_block := 4)
+	//   name #  rot  |  pc1 |  pc2 |   ip | ip_rev |    e |    p |    s | round_keys |  key  
+	//   size #   64  |  224 |  192 |  256 |    256 |  192 |  128 | 2048 |        512 |    8 
+	// offset #    0  |   64 |  288 |  480 |    732 |  992 | 1184 | 1312 |       3360 | 3872 
+
+	// rot         int32_t[16]
+	// pc1         int32_t[56]
+	// pc2         int32_t[48]
+	// ip          int32_t[64]
+	// ip_rev      int32_t[64]
+	// e           int32_t[48[
+	// p           int32_t[32]
+	// s           int32_t[512]	
+	// round_keys  uint64_t[16] {4}
+	// key         uint64_t
+#pragma endregion
 
 	__shared__ int cache[
 		16 + /* rot */
@@ -108,8 +90,8 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 			48 + /* e */
 			32 + /* p */
 			512 + /* s */
-			16 * 2 * 4 + /* round keys (16 keys * 2 sizeof int * 4 warps) */
-			8 /* key */
+			16 * 2 * warps_per_block + /* round keys (16 keys * 2 sizeof int * 4 warps) */
+			warps_per_block /* key */
 	];
 	if (warp_id < key_combinations)
 	{
@@ -142,7 +124,6 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 #undef key_length
 #undef text_alphabet_length
 #undef text_length
-#undef warps_per_block
 #undef round_keys
 #undef key
 #undef warp_id 
@@ -270,6 +251,29 @@ __device__ uint32_t get_warp_id()
 		+ blockIdx.y * gridDim.x
 		+ gridDim.x * gridDim.y * blockIdx.z;
 	return (blockId * blockDim.x + threadIdx.x) / (uint32_t)32;
+}
+
+__host__ bool calculate_distribution(uint64_t threads_needed, dim3* threads_per_block, dim3* blocks)
+{
+	const uint32_t threads_in_block = (uint32_t)(threads_needed >= 128L ? 128L : threads_needed);
+	uint64_t blocks_needed = (long)ceilf(threads_needed / (float)threads_in_block);
+	const uint32_t block_x = (uint32_t)(blocks_needed >= 1024L ? 1024L : blocks_needed);
+	blocks_needed = (int)ceilf(blocks_needed / (float)block_x);
+	const uint32_t block_y = (uint32_t)(blocks_needed >= 1024L ? 1024L : blocks_needed);
+	blocks_needed = (int)ceilf(blocks_needed / (float)block_y);
+	if (blocks_needed >= 64L)
+		return false;
+	const uint32_t block_z = (uint32_t)blocks_needed;
+
+	threads_per_block->x = threads_in_block;
+	threads_per_block->y = 1;
+	threads_per_block->z = 1;
+
+	blocks->x = block_x;
+	blocks->y = block_y;
+	blocks->z = block_z;
+
+	return true;
 }
 
 #pragma endregion
