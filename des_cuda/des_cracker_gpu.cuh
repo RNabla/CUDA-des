@@ -16,8 +16,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true);
 
 __global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
-                       const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext,
-                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count);
+                       const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext);
 
 __device__ uint32_t get_warp_id();
 
@@ -45,7 +44,6 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 #define warp_id (get_warp_id())
 #define key_gen ((uint64_t*)(cache + 840 + 32 * warps_per_block + thread_id * 2))
 #define key_res ((uint64_t*)(cache + 840 + 32 * warps_per_block + local_warp_id * 2))
-//#define key_res ((uint64_t*)(cache+968+local_warp_id*2))
 #define thread_id (threadIdx.x & 0x1f)
 #define local_warp_id (threadIdx.x / 32)
 #define rot (cache)
@@ -58,9 +56,12 @@ __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort
 #define s (cache+328)
 #define key_alphabet_sm (cache + 840 + 34 * warps_per_block)
 #define text_alphabet_sm (cache + 840 + 34 * warps_per_block + 32)
+
+// key | plaintext
+__device__ uint64_t d_results[2];
+
 __global__ void kernel(const char* key_alphabet, const char* text_alphabet, const uint32_t lengths,
-                       const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext,
-                       const int output_limit, uint64_t* const plaintexts, uint64_t* const keys, int* count)
+                       const uint32_t text_combinations, const uint32_t key_combinations, const uint64_t ciphertext)
 {
 #pragma region doc
 
@@ -128,12 +129,8 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 			uint64_t plaintext = create_pattern(i, text_alphabet_sm, text_alphabet_length, text_length);
 			if (ciphertext == des_encrypt(plaintext, round_keys, ip, ip_rev, e, p, s))
 			{
-				int index = atomicAdd(count, 1);
-				if (index < output_limit)
-				{
-					keys[index] = *key_res;
-					plaintexts[index] = plaintext;
-				}
+				d_results[0] = *key_res;
+				d_results[1] = plaintext;
 			}
 		}
 	}
@@ -168,12 +165,6 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	float kernel_elapsed_time = -1;
 	char *d_key_alphabet,
 	     *d_plaintext_alphabet;
-	int *d_count,
-	    h_count;
-	uint64_t *d_plaintexts,
-	         *d_keys,
-	         *h_plaintexts = new uint64_t[output_limit],
-	         *h_keys = new uint64_t[output_limit];
 
 	const int32_t key_alphabet_length = (int32_t)strlen(key_alphabet);
 	const int32_t plaintext_alphabet_length = (int32_t)strlen(plaintext_alphabet);
@@ -197,15 +188,9 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpuErrchk(cudaMalloc(&d_plaintext_alphabet, plaintext_alphabet_length));
 	gpuErrchk(cudaMemcpy(d_key_alphabet, key_alphabet, key_alphabet_length, cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(d_plaintext_alphabet, plaintext_alphabet, plaintext_alphabet_length, cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMalloc(&d_count, sizeof(int)));
-	gpuErrchk(cudaMalloc(&d_plaintexts, output_limit * sizeof(uint64_t)));
-	gpuErrchk(cudaMalloc(&d_keys, output_limit * sizeof(uint64_t)));
-	gpuErrchk(cudaMemset(d_count, 0, sizeof(int)));
-	gpuErrchk(cudaMemset(d_keys, 0, sizeof(uint64_t) * output_limit));
-	gpuErrchk(cudaMemset(d_plaintexts, 0, sizeof(uint64_t) * output_limit));
 
-	uint64_t keys_to_check = number_of_combinations(key_alphabet_length, key_length);
-	uint64_t plaintexts_to_check = number_of_combinations(plaintext_alphabet_length, plaintext_length);
+	uint32_t keys_to_check = (uint32_t)number_of_combinations(key_alphabet_length, key_length),
+		plaintexts_to_check = (uint32_t)number_of_combinations(plaintext_alphabet_length, plaintext_length);
 	uint64_t threads_needed = keys_to_check * 32;
 	if (!calculate_distribution(threads_needed, &threads_per_block, &blocks))
 	{
@@ -225,46 +210,38 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	uint32_t lengths = (key_alphabet_length << 24) | (key_length << 16) | (plaintext_alphabet_length << 8) |
 		plaintext_length;
 
-	kernel << <blocks, threads_per_block >> >(
+	kernel <<<blocks, threads_per_block >> >(
 		d_key_alphabet,
 		d_plaintext_alphabet,
 		lengths,
 		plaintexts_to_check,
 		keys_to_check,
-		ciphertext,
-		output_limit,
-		d_plaintexts,
-		d_keys,
-		d_count
+		ciphertext
 	);
+
+	uint64_t* h_results = new uint64_t[2];
 
 	gpuErrchk(cudaGetLastError());
 	gpuErrchk(cudaEventRecord(kernel_stop));
 	gpuErrchk(cudaEventSynchronize(kernel_stop));
 	gpuErrchk(cudaEventElapsedTime(&kernel_elapsed_time, kernel_start, kernel_stop));
-
-	gpuErrchk(cudaMemcpy(h_keys, d_keys, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(h_plaintexts, d_plaintexts, sizeof(uint64_t) * output_limit, cudaMemcpyDeviceToHost));
-	gpuErrchk(cudaMemcpy(&h_count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpyFromSymbol(h_results, d_results, sizeof(uint64_t) * 2));
 
 	gpuErrchk(cudaFree(d_key_alphabet));
 	gpuErrchk(cudaFree(d_plaintext_alphabet));
-	gpuErrchk(cudaFree(d_count));
-	gpuErrchk(cudaFree(d_keys));
-	gpuErrchk(cudaFree(d_plaintexts));
 	gpuErrchk(cudaEventDestroy(kernel_start));
 	gpuErrchk(cudaEventDestroy(kernel_stop));
 	gpu_end = std::chrono::high_resolution_clock::now();
-	show_results(h_keys, h_plaintexts, h_count, output_limit);
+
+	show_results(h_results, h_results + 1, 1, 1);
 
 	printf("GPU time (all)             [ms]: %llu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(gpu_end - gpu_start).count());
 	if (kernel_elapsed_time >= 0.0)
 		printf("GPU time (kernel)          [ms]: %llu\n", (unsigned long long)kernel_elapsed_time);
 
-	delete[]h_plaintexts;
-	delete[]h_keys;
+	delete[]h_results;
 }
 
 
