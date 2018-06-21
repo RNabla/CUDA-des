@@ -53,7 +53,7 @@ __host__ void run_cpu_version(const char* key_alphabet, const int key_length, co
                               const int plaintext_length, const uint64_t ciphertext)
 {
 	printf("=== CPU ===\n");
-	std::chrono::steady_clock::time_point cpu_start, cpu_end;
+	std::chrono::system_clock::time_point cpu_start, cpu_end;
 
 	uint64_t plaintext,
 	         key;
@@ -63,7 +63,7 @@ __host__ void run_cpu_version(const char* key_alphabet, const int key_length, co
 	                            &key);
 	cpu_end = std::chrono::high_resolution_clock::now();
 	show_results(&key, &plaintext, count);
-	printf("CPU time (all)             [ms]: %llu\n",
+	printf("CPU time (all)             [ms]: %lu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(cpu_end - cpu_start).count());
 }
 

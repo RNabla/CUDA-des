@@ -173,7 +173,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	dim3 threads_per_block,
 	     blocks;
 
-	std::chrono::steady_clock::time_point gpu_start, gpu_end;
+	std::chrono::system_clock::time_point gpu_start, gpu_end;
 
 	printf("=== GPU ===\n");
 
@@ -242,7 +242,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 
 	show_results(h_results, h_results + 1, count);
 
-	printf("GPU time (all)             [ms]: %llu\n",
+	printf("GPU time (all)             [ms]: %lu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(gpu_end - gpu_start).count());
 	if (kernel_elapsed_time >= 0.0)
 		printf("GPU time (kernel)          [ms]: %llu\n", (unsigned long long)kernel_elapsed_time);
