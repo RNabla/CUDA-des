@@ -10,8 +10,7 @@
 #pragma region headers
 
 __host__ void run_gpu_version(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
-                              const int plaintext_length, const uint64_t ciphertext,
-                              const int output_limit);
+                              const int plaintext_length, const uint64_t ciphertext);
 
 __host__ void gpuAssert(cudaError_t code, const char* file, int line, bool abort = true);
 
@@ -159,8 +158,7 @@ __global__ void kernel(const char* key_alphabet, const char* text_alphabet, cons
 #undef text_alphabet_sm
 
 __host__ void run_gpu_version(const char* key_alphabet, const int key_length, const char* plaintext_alphabet,
-                              const int plaintext_length, const uint64_t ciphertext,
-                              const int output_limit)
+                              const int plaintext_length, const uint64_t ciphertext)
 {
 	float kernel_elapsed_time = -1;
 	char *d_key_alphabet,
@@ -242,7 +240,7 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 		count = 1;
 
 
-	show_results(h_results, h_results + 1, count, count);
+	show_results(h_results, h_results + 1, count);
 
 	printf("GPU time (all)             [ms]: %llu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(gpu_end - gpu_start).count());

@@ -5,7 +5,7 @@
 
 #pragma region headers
 
-template<class T>
+template <class T>
 __host__ __device__ uint64_t create_pattern(uint64_t combination_number, const T* alphabet,
                                             const int32_t alphabet_length,
                                             const int32_t segment_length);
@@ -15,14 +15,13 @@ __host__ uint64_t number_of_combinations(const int alphabet_length, const int se
 __host__ void hex_dump(const uint64_t value, const bool flush = false, const int length = 16,
                        const int group = 2);
 
-__host__ void show_results(const uint64_t* const keys, const uint64_t* const plaintexts, const int count,
-                           const int output_limit);
+__host__ void show_results(const uint64_t* const keys, const uint64_t* const plaintexts, const int count);
 
 #pragma endregion
 
 #pragma region implementation
 
-template<class T>
+template <class T>
 __host__ __device__ uint64_t create_pattern(uint64_t combination_number, const T* alphabet,
                                             const int32_t alphabet_length,
                                             const int32_t segment_length)
@@ -73,8 +72,7 @@ __host__ void hex_dump(const uint64_t value, const bool flush, const int length,
 }
 
 
-__host__ void show_results(const uint64_t* const keys, const uint64_t* const plaintexts, const int count,
-                           const int output_limit)
+__host__ void show_results(const uint64_t* const keys, const uint64_t* const plaintexts, const int count)
 {
 	if (count <= 0)
 	{
@@ -82,20 +80,13 @@ __host__ void show_results(const uint64_t* const keys, const uint64_t* const pla
 		return;
 	}
 	printf("Results: \n");
-	int limit = count;
-	if (limit > output_limit)
-		limit = output_limit;
-	for (int i = 0; i < limit; i++)
+	for (int i = 0; i < count; i++)
 	{
 		printf("%d # Key: ", i);
 		hex_dump(keys[i]);
 		printf("\tPlaintext: ");
 		hex_dump(plaintexts[i]);
 		printf("\n");
-	}
-	if (output_limit < count)
-	{
-		printf("\tAnd %d more matches...", count - output_limit);
 	}
 	printf("\n");
 }

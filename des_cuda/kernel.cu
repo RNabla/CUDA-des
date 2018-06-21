@@ -15,7 +15,7 @@ int main(int argc, char** argv)
 	int key_length,
 	    plaintext_length;
 	bool run_cpu,
-		run_gpu;
+	     run_gpu;
 
 	parse_runtime_parameters(argc, argv, &key_alphabet, &key_length, &plaintext_alphabet, &plaintext_length, &ciphertext,
 	                         &run_cpu, &run_gpu);
@@ -23,9 +23,9 @@ int main(int argc, char** argv)
 	print_parameters(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, run_cpu, run_gpu);
 
 	if (run_gpu)
-		run_gpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, 100);
+		run_gpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext);
 	if (run_cpu)
-		run_cpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext, 100);
+		run_cpu_version(key_alphabet, key_length, plaintext_alphabet, plaintext_length, ciphertext);
 
 	free(key_alphabet);
 	free(plaintext_alphabet);
