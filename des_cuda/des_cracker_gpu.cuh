@@ -234,7 +234,15 @@ __host__ void run_gpu_version(const char* key_alphabet, const int key_length, co
 	gpuErrchk(cudaEventDestroy(kernel_stop));
 	gpu_end = std::chrono::high_resolution_clock::now();
 
-	show_results(h_results, h_results + 1, 1, 1);
+	// verification
+	int count = 0;
+	uint64_t round_keys[16];
+	generate_round_keys(h_results[0], round_keys, h_rot, h_pc1, h_pc2);
+	if (des_encrypt(h_results[1], round_keys, h_ip, h_ip_rev, h_e, h_p, h_s) == ciphertext)
+		count = 1;
+
+
+	show_results(h_results, h_results + 1, count, count);
 
 	printf("GPU time (all)             [ms]: %llu\n",
 	       std::chrono::duration_cast<std::chrono::milliseconds>(gpu_end - gpu_start).count());
